@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="TimeLineView">
+        <attr name="timeLabelTextSize" format="dimension" />
+        <attr name="timeLabelTextColor" format="color" />
+        <attr name="timeAxisXThickness" format="dimension" />
+        <attr name="timeAxisXColor" format="color" />
+        <attr name="halfTimeAxisXThickness" format="dimension" />
+        <attr name="halfTimeAxisXColor" format="color" />
+    </declare-styleable>
+</resources>
