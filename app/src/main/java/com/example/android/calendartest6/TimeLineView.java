@@ -28,13 +28,13 @@ public class TimeLineView  extends View {
     private int mTimeLabelHeight;
     private int mTimeLabelMaxWidth;
 
-    private float mTimeLineXThickness;
-    private int mTimeLineXColor;
-    private Paint mTimeLineXPaint;
+    private float mTimeLineThickness;
+    private int mTimeLineColor;
+    private Paint mTimeLinePaint;
 
-    private float mHalfTimeLineXThickness;
-    private int mHalfTimeLineXColor;
-    private Paint mHalfTimeLineXPaint;
+    private float mHalfTimeLineThickness;
+    private int mHalfTimeLineColor;
+    private Paint mHalfTimeLinePaint;
 
     private Rect mContentRect = new Rect();
 
@@ -65,10 +65,10 @@ public class TimeLineView  extends View {
 
             mTimeLabelTextSize = ta.getDimension(R.styleable.TimeLineView_timeLabelTextSize, mTimeLabelTextSize);
             mTimeLabelTextColor = ta.getColor(R.styleable.TimeLineView_timeLabelTextColor, mTimeLabelTextColor);
-            mTimeLineXThickness = ta.getDimension(R.styleable.TimeLineView_timeLineThickness, mTimeLineXThickness);
-            mTimeLineXColor = ta.getColor(R.styleable.TimeLineView_timeLineColor, mTimeLineXColor);
-            mHalfTimeLineXThickness = ta.getDimension(R.styleable.TimeLineView_halfTimeLineThickness, mHalfTimeLineXThickness);
-            mHalfTimeLineXColor = ta.getColor(R.styleable.TimeLineView_halfTimeLineColor, mHalfTimeLineXColor);
+            mTimeLineThickness = ta.getDimension(R.styleable.TimeLineView_timeLineThickness, mTimeLineThickness);
+            mTimeLineColor = ta.getColor(R.styleable.TimeLineView_timeLineColor, mTimeLineColor);
+            mHalfTimeLineThickness = ta.getDimension(R.styleable.TimeLineView_halfTimeLineThickness, mHalfTimeLineThickness);
+            mHalfTimeLineColor = ta.getColor(R.styleable.TimeLineView_halfTimeLineColor, mHalfTimeLineColor);
         } finally {
             ta.recycle();
         }
@@ -94,15 +94,15 @@ public class TimeLineView  extends View {
         mTimeLabelHeight = (int) Math.abs(mTimeLabelTextPaint.getFontMetrics().top);
         mTimeLabelMaxWidth = (int) mTimeLabelTextPaint.measureText("00");
 
-        mTimeLineXPaint =  new Paint();
-        mTimeLineXPaint.setStrokeWidth(mTimeLineXThickness);
-        mTimeLineXPaint.setColor(mTimeLineXColor);
-        mTimeLineXPaint.setStyle(Paint.Style.STROKE);
+        mTimeLinePaint =  new Paint();
+        mTimeLinePaint.setStrokeWidth(mTimeLineThickness);
+        mTimeLinePaint.setColor(mTimeLineColor);
+        mTimeLinePaint.setStyle(Paint.Style.STROKE);
 
-        mHalfTimeLineXPaint =  new Paint();
-        mHalfTimeLineXPaint.setStrokeWidth(mHalfTimeLineXThickness);
-        mHalfTimeLineXPaint.setColor(mHalfTimeLineXColor);
-        mHalfTimeLineXPaint.setStyle(Paint.Style.STROKE);
+        mHalfTimeLinePaint =  new Paint();
+        mHalfTimeLinePaint.setStrokeWidth(mHalfTimeLineThickness);
+        mHalfTimeLinePaint.setColor(mHalfTimeLineColor);
+        mHalfTimeLinePaint.setStyle(Paint.Style.STROKE);
     }
 
     @Override
@@ -110,10 +110,12 @@ public class TimeLineView  extends View {
         super.onSizeChanged(w, h, ow, oh);
 
         mContentRect.set(
-                getPaddingLeft() + mTimeLabelMaxWidth,
+                //getPaddingLeft() + mTimeLabelMaxWidth,
+                getPaddingLeft(),
                 getPaddingTop(),
                 getWidth() - getPaddingRight(),
-                getHeight() - getPaddingBottom() - mTimeLabelHeight
+                //getHeight() - getPaddingBottom() - mTimeLabelHeight
+                getHeight() - getPaddingBottom()
         );
     }
 
@@ -141,28 +143,45 @@ public class TimeLineView  extends View {
 
         canvas.restoreToCount(clipRestoreCount);
 
-        //canvas.drawRect(mContentRect, mTimeLineXPaint);
+        //canvas.drawRect(mContentRect, mTimeLinePaint);
     }
 
+    float mTimeLabelSeparation = 9f;
     private void drawTimeLines(Canvas canvas) {
 
         _log.d("drawing center Y line");
+        long nowInMillis = System.currentTimeMillis();
+
+        //float previousHourX = 0f;
+        float nextHourX = 0f;
+        float nextHalfHourX = 0f;
+
+        //draws previous times
+        for(int i = -1; (nextHourX = getNextHourX(nowInMillis, i)) >= mContentRect.left; i--) {
+            canvas.drawLine(nextHourX, mContentRect.top, nextHourX, mContentRect.bottom, mTimeLinePaint);
+            long hour = getNextHourIn24(nowInMillis, i);
+            canvas.drawText("" + hour, nextHourX + mTimeLabelSeparation, mContentRect.top + mTimeLabelHeight, mTimeLabelTextPaint);
+        }
+
+        //draws afterward
+        for(int i = 0; (nextHourX = getNextHourX(nowInMillis, i)) <= mContentRect.right; i++) {
+            canvas.drawLine(nextHourX, mContentRect.top, nextHourX, mContentRect.bottom, mTimeLinePaint);
+            long hour = getNextHourIn24(nowInMillis, i);
+            canvas.drawText("" + hour, nextHourX + mTimeLabelSeparation, mContentRect.top + mTimeLabelHeight, mTimeLabelTextPaint);
+        }
+
+        //draws half time lines
+        for(int i = -1; (nextHalfHourX = getNextHalfHourX(nowInMillis, i)) >= mContentRect.left; i--) {
+            _log.d("drawing half time line");
+            canvas.drawLine(nextHalfHourX, mContentRect.top, nextHalfHourX, mContentRect.bottom, mHalfTimeLinePaint);
+        }
+        for(int i = 0; (nextHalfHourX = getNextHalfHourX(nowInMillis, i)) <= mContentRect.right; i++) {
+            canvas.drawLine(nextHalfHourX, mContentRect.top, nextHalfHourX, mContentRect.bottom, mHalfTimeLinePaint);
+        }
+
         //draws center Y line, temporarily
         float centerX = getCenterX();
         canvas.drawLine(centerX, mContentRect.top, centerX, mContentRect.bottom, mCenterLinePaint);
-
-        long nowInMillis = System.currentTimeMillis();
-
-        float previousHourX = 0f;
-        float nextHourX = 0f;
-
-        for(int i = 0; (previousHourX = getPreviousHourX(nowInMillis, i)) > mContentRect.left; i++) {
-            canvas.drawLine(previousHourX, mContentRect.top, previousHourX, mContentRect.bottom, mTimeLineXPaint);
-        }
-
-        for(int i = 0; (nextHourX = getNextHourX(nowInMillis, i)) < mContentRect.right; i++) {
-            canvas.drawLine(nextHourX, mContentRect.top, nextHourX, mContentRect.bottom, mTimeLineXPaint);
-        }
     }
 
     private float getCenterX() {
@@ -173,16 +192,25 @@ public class TimeLineView  extends View {
 
     private static final int MINUTE_DP_UNIT = 4;
 
-    private float getPreviousHourX(long nowInMillis, int nth) {
+    //TODO
+    //
+
+    private float getNextHourX(long nowInMillis, int nextNth) {
         long nowInMinutes = TimeUnit.MILLISECONDS.toMinutes(nowInMillis);
         long remainder = nowInMinutes % 60;
-        return getCenterX() - remainder * MINUTE_DP_UNIT - nth * 60 * MINUTE_DP_UNIT;
+
+        return getCenterX() + (60 - remainder) * MINUTE_DP_UNIT + nextNth * 60 * MINUTE_DP_UNIT;
     }
 
-    private float getNextHourX(long nowInMillis, int nth) {
-        long nowInMinutes = TimeUnit.MILLISECONDS.toMinutes(nowInMillis);
-        long remainder = nowInMinutes % 60;
-        return getCenterX() + (60 - remainder) * MINUTE_DP_UNIT + nth * 60 * MINUTE_DP_UNIT;
+    private float getNextHalfHourX(long nowInMillis, int nextNth) {
+        return getNextHourX(nowInMillis, nextNth) + 30 * MINUTE_DP_UNIT;
+    }
+
+    private long getNextHourIn24(long nowInMillis, int nextNth) {
+        long nowInHours = TimeUnit.MILLISECONDS.toHours(nowInMillis);
+        long nextIn24Hours = (nowInHours + 1 + nextNth) % 24;
+
+        return nextIn24Hours;
     }
 
     private void example() {
