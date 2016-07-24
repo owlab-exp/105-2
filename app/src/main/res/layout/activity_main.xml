@@ -12,28 +12,31 @@
         android:text="Hello World!" />
         -->
 
-    <com.example.android.calendartest6.TimeLineView
-        xmlns:tp="http://schemas.android.com/apk/res-auto"
-        android:id="@+id/timePlane"
-        tp:centerLineThickness="1dp"
-        tp:centerLineColor="#FF7F6E"
-        tp:timeLabelTextSize="14sp"
-        tp:timeLabelTextColor="#555555"
-        tp:timeLineThickness="1dp"
-        tp:timeLineColor="#DDDDDD"
-        tp:halfTimeLineThickness="1dp"
-        tp:halfTimeLineColor="#f0f2ec"
-
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        />
+        android:layout_height="match_parent">
 
+        <com.example.android.calendartest6.TimeLineView xmlns:tp="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/timePlane"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tp:centerLineColor="#FF7F6E"
+            tp:centerLineThickness="1dp"
+            tp:halfTimeLineColor="#f0f2ec"
+            tp:halfTimeLineThickness="1dp"
+            tp:timeLabelTextColor="#555555"
+            tp:timeLabelTextSize="14sp"
+
+            tp:timeLineColor="#DDDDDD"
+            tp:timeLineThickness="1dp" />
+
+    </FrameLayout>
 </android.support.design.widget.CoordinatorLayout>
 
-<!--//
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="@dimen/activity_vertical_margin"
+    <!--//
+        android:paddingBottom="@dimen/activity_vertical_margin"
+        android:paddingLeft="@dimen/activity_horizontal_margin"
+        android:paddingRight="@dimen/activity_horizontal_margin"
+        android:paddingTop="@dimen/activity_vertical_margin"
 
--->
+    -->

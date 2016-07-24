@@ -4,12 +4,19 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.support.v4.view.GestureDetectorCompat;
+import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
+import android.widget.OverScroller;
 
 import java.util.Date;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -44,6 +51,11 @@ public class TimeLineView  extends View {
     private static final float AXIS_Y_MAX = 1f;
 
     private RectF mCurrentViewport = new RectF(AXIS_X_MIN, AXIS_Y_MIN, AXIS_X_MAX, AXIS_Y_MAX);
+
+    private GestureDetectorCompat mGestureDetector;
+    private OverScroller mScroller;
+    private RectF mScrollerStartViewPort = new RectF();
+    private Point mSurfaceSizeBuffer = new Point();
 
     public TimeLineView(Context ctx) {
         this(ctx, null, 0);
@@ -133,7 +145,7 @@ public class TimeLineView  extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        example();
+        //example();
         //TODO draws axes and text labels
         drawTimeLines(canvas);
 
@@ -160,14 +172,16 @@ public class TimeLineView  extends View {
         for(int i = -1; (nextHourX = getNextHourX(nowInMillis, i)) >= mContentRect.left; i--) {
             canvas.drawLine(nextHourX, mContentRect.top, nextHourX, mContentRect.bottom, mTimeLinePaint);
             long hour = getNextHourIn24(nowInMillis, i);
-            canvas.drawText("" + hour, nextHourX + mTimeLabelSeparation, mContentRect.top + mTimeLabelHeight, mTimeLabelTextPaint);
+            String hourStr = (hour <= 12) ? Objects.toString(hour) + " am" : Objects.toString(hour - 12) + " pm";
+            canvas.drawText(hourStr, nextHourX + mTimeLabelSeparation, mContentRect.top + mTimeLabelHeight, mTimeLabelTextPaint);
         }
 
         //draws afterward
         for(int i = 0; (nextHourX = getNextHourX(nowInMillis, i)) <= mContentRect.right; i++) {
             canvas.drawLine(nextHourX, mContentRect.top, nextHourX, mContentRect.bottom, mTimeLinePaint);
             long hour = getNextHourIn24(nowInMillis, i);
-            canvas.drawText("" + hour, nextHourX + mTimeLabelSeparation, mContentRect.top + mTimeLabelHeight, mTimeLabelTextPaint);
+            String hourStr = (hour <= 12) ? Objects.toString(hour) + " am" : Objects.toString(hour - 12) + " pm";
+            canvas.drawText(hourStr, nextHourX + mTimeLabelSeparation, mContentRect.top + mTimeLabelHeight, mTimeLabelTextPaint);
         }
 
         //draws half time lines
@@ -220,5 +234,98 @@ public class TimeLineView  extends View {
         _log.d("Now in Date = " + new Date(nowInMillis));
         _log.d("Now in minutes = " + nowInMinutes%60);
         _log.d("Now in hours = " + nowInHours%24);
+    }
+
+    /////////////////////////
+    //
+    //  Gestures
+    //
+    /////////////////////////
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        _log.d("onTouchEvent: " + Objects.toString(event));
+        return super.onTouchEvent(event);
+    }
+
+    private final GestureDetector.SimpleOnGestureListener mGestureListener = new GestureDetector.SimpleOnGestureListener() {
+        @Override
+        public boolean onDown(MotionEvent event) {
+            mScrollerStartViewPort.set(mCurrentViewport);
+            mScroller.forceFinished(true);
+            ViewCompat.postInvalidateOnAnimation(TimeLineView.this);
+            return true;
+        }
+
+        @Override
+        public boolean onDoubleTap(MotionEvent e) {
+            return false;
+        }
+
+        @Override
+        public boolean onScroll(MotionEvent event1, MotionEvent event2, float distanceX, float distanceY) {
+            float viewportOffsetX = distanceX * mCurrentViewport.width() / mContentRect.width();
+            float viewportOffsetY = -distanceY * mCurrentViewport.height() / mContentRect.height();
+            computeScrollSurfaceSize(mSurfaceSizeBuffer);
+            int scrolledX = (int) (mSurfaceSizeBuffer.x * (mCurrentViewport.left + viewportOffsetX - AXIS_X_MIN) / (AXIS_X_MAX - AXIS_X_MIN));
+            int scrolledY = (int) (mSurfaceSizeBuffer.y * (mCurrentViewport.bottom + viewportOffsetY) / (AXIS_Y_MAX - AXIS_Y_MIN));
+            boolean canScrollX = mCurrentViewport.left > AXIS_X_MIN || mCurrentViewport.right < AXIS_X_MAX;
+            boolean canScrollY = mCurrentViewport.top > AXIS_Y_MIN || mCurrentViewport.bottom < AXIS_Y_MAX;
+            setViewportBottomLeft(mCurrentViewport.left + viewportOffsetX, mCurrentViewport.bottom + viewportOffsetY);
+
+            if(canScrollX && scrolledX < 0) {
+                //Edge handling
+            }
+            if(canScrollY && scrolledY < 0) {
+                //Edge handling
+            }
+            //return super.onScroll(event1, event2, distanceX, distanceY);
+            return true;
+        }
+
+        @Override
+        public boolean onFling(MotionEvent event1, MotionEvent event2, float velocityX, float velocityY) {
+            fling((int) -velocityX, (int) -velocityY);
+            return true;
+        }
+    };
+
+    private void computeScrollSurfaceSize(Point out) {
+        out.set(
+                (int) (mContentRect.width() * (AXIS_X_MAX - AXIS_X_MIN)/ mCurrentViewport.width()),
+                (int) (mContentRect.height() * (AXIS_Y_MAX - AXIS_Y_MIN) / mCurrentViewport.height())
+        );
+    }
+
+    private void setViewportBottomLeft(float x, float y) {
+        float curWidth = mCurrentViewport.width();
+        float curHeight = mCurrentViewport.height();
+        x = Math.max(AXIS_X_MIN, Math.min(x, AXIS_X_MAX - curWidth));
+        y = Math.max(AXIS_Y_MIN + curHeight, Math.min(y, AXIS_Y_MAX));
+
+        mCurrentViewport.set(x, y - curHeight, x + curWidth, y);
+        ViewCompat.postInvalidateOnAnimation(this);
+    }
+
+    private void fling(int velocityX, int velocityY) {
+        //TODO release edge effect
+
+        computeScrollSurfaceSize(mSurfaceSizeBuffer);
+        mScrollerStartViewPort.set(mCurrentViewport);
+        int startX = (int) (mSurfaceSizeBuffer.x * (mScrollerStartViewPort.left - AXIS_X_MIN)/ (AXIS_X_MAX - AXIS_X_MIN));
+        int startY = (int) (mSurfaceSizeBuffer.y * (AXIS_Y_MAX - mScrollerStartViewPort.bottom) / (AXIS_Y_MAX - AXIS_Y_MIN));
+        mScroller.forceFinished(true);
+        mScroller.fling(
+                startX,
+                startY,
+                velocityX,
+                velocityY,
+                0, mSurfaceSizeBuffer.x - mContentRect.width(),
+                0, mSurfaceSizeBuffer.y - mContentRect.height(),
+                mContentRect.width() / 2,
+                mContentRect.height() /2
+        );
+
+        ViewCompat.postInvalidateOnAnimation(this);
     }
 }
