@@ -21,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             tp:nowLineColor="#FF7F6E"
-            tp:nowLineThickness="10dp"
+            tp:nowLineThickness="1dp"
             tp:halfTimeLineColor="#f0f2ec"
             tp:halfTimeLineThickness="1dp"
             tp:timeLabelTextColor="#555555"
