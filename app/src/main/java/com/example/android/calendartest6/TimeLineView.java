@@ -1,41 +1,32 @@
 package com.example.android.calendartest6;
 
 import android.content.Context;
-import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.PointF;
 import android.graphics.Rect;
-import android.graphics.RectF;
-import android.support.v4.view.ViewCompat;
+import android.os.Bundle;
+import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.OverScroller;
+import android.view.ViewConfiguration;
+import android.widget.FrameLayout;
+import android.widget.Scroller;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Created by ernest on 7/19/16.
+ * Created by ernest on 8/7/16.
  */
-public class TimeLineView  extends View {
-    private static LOG _log = new LOG(TimeLineView.class);
-
-    private float mNowLineThickness;
-    private int mNowLineColor;
-    private Paint mNowLinePaint;
-
-    private int mMinuteUnitDp = 1;
-
-    private Rect mContentRect = new Rect();
-    private RectF mCurrentViewPort = new RectF();
-
-    private PointF mBaseCenterPoint;// = new PointF();
-    private long mNowInMinutes;//
-
-    private GestureDetector mGestureDetector; //= new GestureDetector(getContext(), new GestureListener());
-    private OverScroller mScroller;
+public class TimeLineView extends FrameLayout {
+    private static final LOG _log = new LOG(TimeLineView.class);
 
     public TimeLineView(Context context) {
         this(context, null);
@@ -46,153 +37,321 @@ public class TimeLineView  extends View {
     }
 
     public TimeLineView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
+        this(context, attrs, defStyleAttr, 0);
+    }
 
-        TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.TimeLineView, defStyleAttr, defStyleAttr);
-        try {
-            mNowLineThickness = a.getDimension(R.styleable.TimeLineView_nowLineThickness, mNowLineThickness);
-            mNowLineColor = a.getColor(R.styleable.TimeLineView_nowLineColor, mNowLineColor);
-        } finally {
-            a.recycle();
+    public TimeLineView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+        super(context, attrs, defStyleAttr, defStyleRes);
+
+        init(context, attrs, defStyleAttr, defStyleRes);
+    }
+
+    private GestureDetector mDetector;
+    private Scroller mScroller;
+    /* Positions of the last motion event */
+    private float mMotionInitX, mMotionInitY;
+    /* Drag threshold */
+    private int mTouchSlop;
+
+    private Rect mCurrentContentRect = new Rect();
+    //private PointF mCurrentTimePoint;
+    private int mDpPerMinute = 2;
+    //private long mCurrentTimeInMinutes;
+    private Tuple2<Long, Integer> mCurrentTimeAndX;
+    private int mXDiff = 0;
+    private List<Tuple2<Long, Integer>> mVisibleTimeAndX = new ArrayList<>();
+    private SortedMap<Long, Integer> mVisibleTimeAndXMap = new TreeMap<>();
+
+    private Paint mCurrentTimePaint = new Paint();
+
+    /* Listener to handle all the touch events */
+    private GestureDetector.SimpleOnGestureListener mListener = new GestureDetector.SimpleOnGestureListener() {
+        @Override
+        public boolean onDown(MotionEvent e) {
+            if(!mScroller.isFinished()) {
+                mScroller.abortAnimation();
+            }
+            return true;
         }
 
-        init();
+        @Override
+        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+            _log.d("onScroll: (dist X, dist Y) = (" + distanceX + ", " + distanceY + ")");
+            scrollBy((int)distanceX, (int)distanceY);
+            return true;
+        }
 
+        @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            fling((int) -velocityX / 3, (int) -velocityY / 3);
+            return true;
+        }
+    };
+    //initialize
+    private void init(Context ctx, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+        //For onDraw in this layout
+        setWillNotDraw(false);
+
+        mDetector = new GestureDetector(ctx, mListener);
+        mScroller = new Scroller(ctx);
+        mTouchSlop = ViewConfiguration.get(ctx).getScaledTouchSlop();
+
+        mCurrentTimePaint.setAntiAlias(true);
+        mCurrentTimePaint.setColor(Color.BLUE);
+        mCurrentTimePaint.setStrokeWidth(2.0f);
+        mCurrentTimePaint.setStyle(Paint.Style.STROKE);
     }
 
     @Override
-    protected void onSizeChanged(int w, int h, int ow, int oh) {
-        super.onSizeChanged(w, h, ow, oh);
+    protected void measureChild(View child, int parentWidthMeasureSpec, int parentHeightMeasureSpec) {
+        int childWidthMeasureSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
+        int childHeightMeasureSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
+        child.measure(childWidthMeasureSpec, childHeightMeasureSpec);
+    }
 
-        //Viewable rect
-        mContentRect.set(
+    @Override
+    protected void measureChildWithMargins(View child, int parentWidthMeasureSpec, int widthUsed, int parentHeightMeasureSpec, int heightUsed) {
+        final MarginLayoutParams marginLayoutParams = (MarginLayoutParams) child.getLayoutParams();
+        final int childWidthMeasureSpec = MeasureSpec.makeMeasureSpec(marginLayoutParams.leftMargin + marginLayoutParams.rightMargin, MeasureSpec.UNSPECIFIED);
+        final int childHeightMeasureSpec = MeasureSpec.makeMeasureSpec(marginLayoutParams.topMargin + marginLayoutParams.bottomMargin, MeasureSpec.UNSPECIFIED);
+        child.measure(childWidthMeasureSpec, childHeightMeasureSpec);
+    }
+
+    @Override
+    public void computeScroll() {
+        if(mScroller.computeScrollOffset()) {
+            _log.d("computeScroll: ");
+            // This is called at drawing time by ViewGroup. This is used to keep the fling animation through to completion
+            int oldX = getScrollX();
+            int oldY = getScrollY();
+            int x = mScroller.getCurrX();
+            int y = mScroller.getCurrY();
+
+            //if(getChildCount() > 0) {
+            //    View child = getChildAt(0);
+            //    //TODO clamp child
+            //    x = clamp(x, getWidth() - getPaddingRight() - getPaddingLeft(), child.getWidth());
+            //    y = clamp(y, getHeight() - getPaddingTop() - getPaddingBottom(), child.getHeight());
+
+                if(x != oldX || y != oldY) {
+                    scrollTo(x, y);
+                    postInvalidateOnAnimation();
+                }
+            //}
+            // Keep on drawing untile the animation has finished
+        }
+    }
+
+    // Override scrollTo to do bounds checks on any scrolling request
+    @Override
+    public void scrollTo(int x, int y) {
+        _log.d("scrollTo: x = " + x);
+
+        mXDiff += x;
+        // TODO: ? : We rely on the fact the View.scrollBy calls scrollTo.
+        //if(getChildCount() > 0) {
+        //    View child = getChildAt(0);
+        //    //TODO: clamp child
+        //    x = clamp(x, getWidth() - getPaddingRight() - getPaddingLeft(), child.getWidth());
+        //    y = clamp(y, getHeight() - getPaddingTop() - getPaddingBottom(), child.getHeight());
+
+        //    if(x != getScrollX() || y != getScrollY()) {
+                super.scrollTo(x, y);
+        //    }
+        //}
+    }
+
+    /**
+     * Monitor touch events passed down to the children and intercept as soon as it is determined we are dragging
+     */
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent e) {
+        switch(e.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                mMotionInitX = e.getX();
+                mMotionInitY = e.getY();
+                // Feed the down event to the detector so it has context when/if dragging begins
+                mDetector.onTouchEvent(e);
+                break;
+            case MotionEvent.ACTION_MOVE:
+                final float x = e.getX();
+                final float y = e.getY();
+                final int xDiff = (int)Math.abs(x - mMotionInitX);
+                final int yDiff = (int)Math.abs(y - mMotionInitY);
+                if(xDiff > mTouchSlop || yDiff > mTouchSlop) {
+                    //Start capturing events
+                    return true;
+                }
+                break;
+        }
+        return super.onInterceptTouchEvent(e);
+    }
+
+    /**
+     * Feed all touch events to the detector for processing
+     */
+    @Override
+    public boolean onTouchEvent(MotionEvent e) {
+        return mDetector.onTouchEvent(e);
+    }
+
+    /**
+     * Utility method to initialize the scroller and start redrawing
+     */
+    public void fling(int velocityX, int velocityY) {
+        _log.d("fling: (velocityX, velocityY) = (" + velocityX + ", " + velocityY + ")");
+        //if(getChildCount() > 0) {
+            //int height = getHeight() - getPaddingTop() - getPaddingBottom();
+            //int width = getWidth() - getPaddingLeft() - getPaddingRight();
+            //int bottom = getChildAt(0).getHeight();
+            //int right = getChildAt(0).getWidth();
+            mScroller.fling(getScrollX(), getScrollY(),
+                    velocityX, velocityY,
+                    //0, Math.max(0, right - width),
+                    //0, Math.max(0, bottom - height));
+                    0, Integer.MAX_VALUE,
+                    0, Integer.MAX_VALUE);
+
+            // redraw
+            //invalidate();
+        //}
+        postInvalidateOnAnimation();
+    }
+
+    /**
+     * Utility method to assist in doing bound checking
+     */
+    private int clamp(int n, int my, int child) {
+        if(my >= child || n < 0) {
+            // The child is beyond one of the parent bounds
+            // or is smaller than the parent and can't scroll
+            return 0;
+        }
+
+        if((my + n) > child) {
+            // Request scroll is beyond right bound of child
+            return child -my;
+        }
+
+        return n;
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldW, int oldH) {
+        super.onSizeChanged(w, h, oldW, oldH);
+
+        mCurrentContentRect.set(
                 getPaddingLeft(),
                 getPaddingTop(),
                 getWidth() - getPaddingRight(),
                 getHeight() - getPaddingBottom()
         );
 
-        _log.d("onSizeChanged::mContentRect: " + mContentRect.toString());
+        _log.d("onSizeChanged: mCurrentContentRect: " + mCurrentContentRect.toString());
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int minPlaneSize = getResources().getDimensionPixelSize(R.dimen.min_time_plane_size);
+        int minPlaneSize = 1;
         int w = Math.max(getSuggestedMinimumWidth(), resolveSize(minPlaneSize + getPaddingLeft() + getPaddingRight(), widthMeasureSpec));
         int h = Math.max(getSuggestedMinimumHeight(), resolveSize(minPlaneSize + getPaddingTop() + getPaddingBottom(), heightMeasureSpec));
-        //_log.d("(w, h) = (" + w + ", " + h + ")");
+
+        _log.d("onMeasure: (w, h) = (" + w + ", " + h + ")");
         setMeasuredDimension(w, h);
-    }
-
-    private void init() {
-        //init paints
-        mNowLinePaint = new Paint();
-        mNowLinePaint.setAntiAlias(true);
-        mNowLinePaint.setColor(mNowLineColor);
-        mNowLinePaint.setStrokeWidth(mNowLineThickness);
-        mNowLinePaint.setStyle(Paint.Style.STROKE);
-
-        mGestureDetector = new GestureDetector(getContext(), new GestureListener());
-        mGestureDetector.setIsLongpressEnabled(false);
-
-        mScroller = new OverScroller(getContext());
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        if(mBaseCenterPoint == null) {
-            //initialize with center of the rect to now
-            mBaseCenterPoint = new PointF();
-            mBaseCenterPoint.x = mContentRect.exactCenterX();
-            mBaseCenterPoint.y = mContentRect.top;
-
-            mNowInMinutes = TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis());
-            //for the starting minutes
-            mCurrentViewPort.left = mNowInMinutes - mContentRect.exactCenterX() / mMinuteUnitDp;
-            //for the ending minutes
-            mCurrentViewPort.right = mNowInMinutes + mContentRect.exactCenterX() / mMinuteUnitDp;
-            //top and bottom is not about time here
-            mCurrentViewPort.top = mContentRect.top;
-            mCurrentViewPort.bottom = mContentRect.bottom;
+        // If not initialized, initialize it with current time and center on X
+        if(mCurrentTimeAndX == null) {
+            //determine time and point initially
+            // Also mCurrentTimePoint is floating...it can be outside of the current visible region
+            mCurrentTimeAndX = new Tuple2<Long, Integer>(TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis()), mCurrentContentRect.centerX());
+            //mCurrentTimePoint = new PointF();
+            //mCurrentTimePoint.x = mCurrentContentRect.exactCenterX();
+            //mCurrentTimePoint.y = mCurrentContentRect.top;
+            //_log.d("onDraw: mCurrentTimePoint = " + mCurrentTimePoint.toString());
+            //mCurrentTimeInMinutes = System.currentTimeMillis();
+            //_log.d("onDraw: mCurrentTimeInMinutes = " + mCurrentTimeInMinutes);
+            //TODO make time lines
         }
 
-        //_log.d("mBaseCenterPoint: " + mBaseCenterPoint.toString());
-        //_log.d("mBaseCenterPoint.x: " + mBaseCenterPoint.x);
-        //_log.d("mContentRect.top: " + mContentRect.top);
-        //_log.d("mContentRect.bottom: " + mContentRect.bottom);
-        //_log.d("mNowLinePaint: " + mNowLinePaint.toString());
-        drawTimeLines(canvas);
-        drawNowLine(canvas, mBaseCenterPoint.x);
-        //canvas.drawRect(mBaseCenterPoint.x* 1/3, mContentRect.bottom* 1/3, mBaseCenterPoint.x*2/3, mContentRect.bottom * 2/3, mNowLinePaint);
+        _log.d("onDraw: mCurrentTimeAndX = " + mCurrentTimeAndX.toString());
+        _log.d("onDraw: mXDiff = " + mXDiff);
 
-        _log.d("onDraw");
-    }
+        computeVisibleTimes();
 
-    private void drawTimeLines(Canvas canvas) {
+        drawUnits(canvas);
 
     }
 
-    private void drawNowLine(Canvas canvas, float nowX) {
-        _log.d("drawNowLine");
-        canvas.drawLine(nowX, mContentRect.top, nowX, mContentRect.bottom, mNowLinePaint);
+    private void computeVisibleTimes() {
+        //// Based on the initial current time and X
+        //// Compute time (int minutes) and X by differences from moved X (by scroll)
+        //mVisibleTimeAndX.clear();
+        mVisibleTimeAndXMap.clear();
+
+        int minutesDiff = mXDiff / mDpPerMinute;
+        long currentCenterTimeInMinutes = mCurrentTimeAndX.t + minutesDiff;
+
+        int centerX = mCurrentContentRect.centerX();
+        long timeInMinutesBackward =  currentCenterTimeInMinutes;
+
+        for(int x = centerX; x > mCurrentContentRect.left; x -= mDpPerMinute) {
+            //mVisibleTimeAndX.add(new Tuple2<Long, Integer>(timeInMinutesBackward, x));
+            mVisibleTimeAndXMap.put(timeInMinutesBackward--, x);
+        //    timeInMinutesBackward--;
+        }
+
+        long timeInMinutesForward =  currentCenterTimeInMinutes + 1;
+        for(int x = centerX + mDpPerMinute; x < mCurrentContentRect.right; x += mDpPerMinute) {
+        //    mVisibleTimeAndX.add(new Tuple2<Long, Integer>(timeInMinutesForward, x));
+            mVisibleTimeAndXMap.put(timeInMinutesForward++, x);
+        //    timeInMinutesForward++;
+        }
+
+        //for(Tuple2<Long, Integer> timePointTuple: mVisibleTimeAndX) {
+        //    _log.d("computeVisibleTimes: tuple = " + timePointTuple.toString());
+        //}
+        for(Map.Entry<Long, Integer> entry: mVisibleTimeAndXMap.entrySet()) {
+            _log.d("computeVisibleTimes: entry : " + entry.toString());
+        }
     }
 
+    private void drawUnits(Canvas canvas) {
+        _log.d("drawUnits");
+        //canvas.drawLine(mCurrentTimePoint.x, mCurrentContentRect.top, mCurrentTimePoint.x, mCurrentContentRect.bottom, mCurrentTimePaint);
+    }
+
+    /**
+     * This needs a unique view ID of this view
+     * @return
+     */
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        //_log.d("onTouchEvent: " + event.toString());
-        boolean ret =  mGestureDetector.onTouchEvent(event);
-        return ret || super.onTouchEvent(event);
+    public Parcelable onSaveInstanceState() {
+        _log.d("onSaveInstanceState: mCurrentTimeAndX = " + mCurrentTimeAndX.toString());
+        Bundle bundle = new Bundle();
+        bundle.putParcelable("superState", super.onSaveInstanceState());
+        bundle.putSerializable("mCurrentTimeAndX", mCurrentTimeAndX);
+        bundle.putInt("mXDiff", mXDiff);
+        return bundle;
     }
 
+    /**
+     * Same requirement of unique view ID, like the onSaveInstanceState
+     * @param state
+     */
     @Override
-    public void computeScroll() {
-        super.computeScroll();
-        _log.d("computeScroll");
+    public void onRestoreInstanceState(Parcelable state) {
+        if(state instanceof Bundle) {
+            Bundle bundle = (Bundle) state;
+            mCurrentTimeAndX = (Tuple2<Long, Integer>)bundle.getSerializable("mCurrentTimeAndX");
+            mXDiff = bundle.getInt("mXDiff");
+            _log.d("onRestoreInstanceState: mCurrentTimeAndX = " + mCurrentTimeAndX.toString());
+            state = bundle.getParcelable("superState");
+        }
+        super.onRestoreInstanceState(state);
     }
-
-    class GestureListener extends GestureDetector.SimpleOnGestureListener {
-        @Override
-        public boolean onDown(MotionEvent e) {
-            _log.d("onDown: " + e.toString());
-
-            mScroller.forceFinished(true);
-            ViewCompat.postInvalidateOnAnimation(TimeLineView.this);
-
-            return true;
-        }
-
-        @Override
-        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distX, float distY) {
-            _log.d("onScroll: e1: " + e1.toString());
-            _log.d("onScroll: e2: " + e2.toString());
-            _log.d("onScroll: distX: " + distX);
-            _log.d("onScroll: distY: " + distY);
-
-            mBaseCenterPoint.x -= distX;
-            mBaseCenterPoint.y -= distY;
-            ViewCompat.postInvalidateOnAnimation(TimeLineView.this);
-            return true;
-        }
-
-        @Override
-        public boolean onFling(MotionEvent e1, MotionEvent e2, float veloX, float veloY) {
-            _log.d("onFling: e1: " + e1.toString());
-            _log.d("onFling: e2: " + e2.toString());
-            _log.d("onFling: veloX: " + veloX);
-            _log.d("onFling: veloY: " + veloY);
-            mScroller.forceFinished(true);
-            mScroller.fling((int)e1.getX(), (int)e2.getY(), (int)veloX/2, (int)veloY/2, Integer.MIN_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MAX_VALUE);
-            //TODO something with scroller.curry
-            ViewCompat.postInvalidateOnAnimation(TimeLineView.this);
-
-
-            return true;
-        }
-    }
-
-    //public static class TimeStopsBuffer {
-    //    List<Tuple2<Float, Long>> timeLineList =  new ArrayList<>();
-    //}
 }

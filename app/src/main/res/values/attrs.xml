@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="TimeLineView">
+    <declare-styleable name="TimeLineViewSimple">
         <attr name="nowLineThickness" format="dimension" />
         <attr name="nowLineColor" format="color" />
         <attr name="timeLabelTextSize" format="dimension" />

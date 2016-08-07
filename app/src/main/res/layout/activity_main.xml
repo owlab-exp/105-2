@@ -12,11 +12,12 @@
         android:text="Hello World!" />
         -->
 
+    <!--
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <com.example.android.calendartest6.TimeLineView xmlns:tp="http://schemas.android.com/apk/res-auto"
+        <com.example.android.calendartest6.TimeLineViewSimple xmlns:tp="http://schemas.android.com/apk/res-auto"
             android:id="@+id/timePlane"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -31,6 +32,13 @@
             tp:timeLineThickness="1dp" />
 
     </FrameLayout>
+    -->
+    <com.example.android.calendartest6.TimeLineView
+        android:id="@+id/timeLineView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+    </com.example.android.calendartest6.TimeLineView>
 </android.support.design.widget.CoordinatorLayout>
 
     <!--//
