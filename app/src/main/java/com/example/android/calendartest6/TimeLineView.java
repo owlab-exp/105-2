@@ -149,10 +149,10 @@ public class TimeLineView extends FrameLayout {
         mDayLabelPaint = new Paint();
         mDayLabelPaint.setAntiAlias(true);
         mDayLabelPaint.setTextSize(mDayLabelTextSize);
-        mDayLabelPaint.setTextAlign(Paint.Align.LEFT);
+        mDayLabelPaint.setTextAlign(Paint.Align.CENTER);
         mDayLabelPaint.setColor(mDayLabelTextColor);
         mDayLabelHeight = (int)Math.abs(mDayLabelPaint.getFontMetrics().top);
-        mDayLabelMaxWidth = (int)mDayLabelPaint.measureText("00"); //day-month-week
+        mDayLabelMaxWidth = (int)mDayLabelPaint.measureText("WWW AAA 00, 0000"); //month-day-year
 
         mHourLabelPaint = new Paint();
         mHourLabelPaint.setAntiAlias(true);
