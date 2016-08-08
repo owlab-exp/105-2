@@ -22,12 +22,16 @@
         <attr name="dipPerMinute" format="dimension"/>
         <attr name="nowLineThickness"/>
         <attr name="nowLineColor" />
-        <attr name="timeLabelTextSize" />
-        <attr name="timeLabelTextColor" />
-        <attr name="timeLabelSeparation" format="dimension"/>
-        <attr name="timeLineThickness" />
-        <attr name="timeLineColor" />
-        <attr name="halfTimeLineThickness" />
-        <attr name="halfTimeLineColor" />
+        <attr name="labelPadding" format="dimension"/>
+        <attr name="dayLabelTextSize" format="dimension"/>
+        <attr name="dayLabelTextColor" format="color"/>
+        <attr name="dayLabelSeparation" format="dimension"/>
+        <attr name="hourLabelTextSize" format="dimension"/>
+        <attr name="hourLabelTextColor" format="color"/>
+        <attr name="hourLabelSeparation" format="dimension"/>
+        <attr name="hourLineThickness" format="dimension"/>
+        <attr name="hourLineColor" format="color"/>
+        <attr name="halfHourLineThickness" format="dimension"/>
+        <attr name="halfHourLineColor" format="color"/>
     </declare-styleable>
 </resources>

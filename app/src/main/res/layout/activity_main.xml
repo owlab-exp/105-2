@@ -34,21 +34,31 @@
 
     </FrameLayout>
     -->
-    <com.example.android.calendartest6.TimeLineView xmlns:tv="http://schemas.android.com/apk/res-auto"
+    <com.example.android.calendartest6.TimeLineView xmlns:tlv="http://schemas.android.com/apk/res-auto"
         android:id="@+id/timeLineView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
 
-        tv:dipPerMinute="1dp"
-        tv:nowLineColor="#FF7F6E"
-        tv:nowLineThickness="1dp"
-        tv:timeLineColor="#DDDDDD"
-        tv:timeLineThickness="1dp"
-        tv:halfTimeLineColor="#f0f2ec"
-        tv:halfTimeLineThickness="1dp"
-        tv:timeLabelTextColor="#555555"
-        tv:timeLabelTextSize="14sp"
-        tv:timeLabelSeparation="3dp"
+        tlv:dipPerMinute="1dp"
+
+        tlv:nowLineColor="#FF7F6E"
+        tlv:nowLineThickness="1dp"
+
+        tlv:labelPadding="2dp"
+
+        tlv:hourLineColor="#DDDDDD"
+        tlv:hourLineThickness="1dp"
+
+        tlv:halfHourLineColor="#f0f2ec"
+        tlv:halfHourLineThickness="1dp"
+
+        tlv:hourLabelTextColor="#555555"
+        tlv:hourLabelTextSize="14sp"
+        tlv:hourLabelSeparation="3dp"
+
+        tlv:dayLabelTextColor="#555555"
+        tlv:dayLabelTextSize="14sp"
+        tlv:dayLabelSeparation="3dp"
 
         >
 

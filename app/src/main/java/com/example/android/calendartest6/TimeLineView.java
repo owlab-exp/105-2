@@ -15,6 +15,8 @@ import android.view.ViewConfiguration;
 import android.widget.FrameLayout;
 import android.widget.Scroller;
 
+import java.text.DateFormat;
+import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -56,25 +58,34 @@ public class TimeLineView extends FrameLayout {
     //private SortedMap<Long, Integer> mVisibleTimeAndXMap = new TreeMap<>();
     private Tuple2<Long, Float> mVisibleStartMinutesX;
     private Tuple2<Long, Float> mVisibleEndMinutesX;
-    private Tuple2<Long, Float> mVisibleStartHalfTimeX;
-    private Tuple2<Long, Float> mVisibleEndHalfTimeX;
+    private Tuple2<Long, Float> mVisibleStartHalfHourX;
+    private Tuple2<Long, Float> mVisibleEndHalfHourX;
 
-    private float mDpPerMinute;
+    private float   mDpPerMinute;
 
-    private Paint   mTimeLabelPaint;
-    private float   mTimeLabelTextSize;
-    private int     mTimeLabelTextColor;
-    private int     mTimeLabelHeight;
-    private int     mTimeLabelMaxWidth;
-    private int     mTimeLabelSeparation;
+    private float   mLabelPadding;
 
-    private Paint   mTimeLinePaint;
-    private float   mTimeLineThickness;
-    private int     mTimeLineColor;
+    private Paint   mDayLabelPaint;
+    private float   mDayLabelTextSize;
+    private int     mDayLabelTextColor;
+    private int     mDayLabelHeight;
+    private int     mDayLabelMaxWidth;
+    private int     mDayLabelSeparation;
 
-    private Paint   mHalfTimeLinePaint;
-    private float   mHalfTimeLineThickness;
-    private int     mHalfTimeLineColor;
+    private Paint   mHourLabelPaint;
+    private float   mHourLabelTextSize;
+    private int     mHourLabelTextColor;
+    private int     mHourLabelHeight;
+    private int     mHourLabelMaxWidth;
+    private int     mHourLabelSeparation;
+
+    private Paint   mHourLinePaint;
+    private float   mHourLineThickness;
+    private int     mHourLineColor;
+
+    private Paint   mHalfHourLinePaint;
+    private float   mHalfHourLineThickness;
+    private int     mHalfHourLineColor;
 
     /* Listener to handle all the touch events */
     private GestureDetector.SimpleOnGestureListener mListener = new GestureDetector.SimpleOnGestureListener() {
@@ -99,7 +110,7 @@ public class TimeLineView extends FrameLayout {
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             //fling((int) -velocityX / 3, (int) -velocityY / 3);
-            fling((int) -velocityX / 2, (int) -velocityY / 2);
+            fling((int) -velocityX / 5, (int) -velocityY / 5);
             return true;
         }
     };
@@ -114,40 +125,55 @@ public class TimeLineView extends FrameLayout {
 
         TypedArray ta = ctx.getTheme().obtainStyledAttributes(attrs, R.styleable.TimeLineView, defStyleAttr, defStyleRes);
         try {
-            mDpPerMinute = ta.getDimension(R.styleable.TimeLineView_dipPerMinute, mDpPerMinute);
-            mTimeLabelTextSize = ta.getDimension(R.styleable.TimeLineView_timeLabelTextSize, mTimeLabelTextSize);
-            mTimeLabelTextColor = ta.getColor(R.styleable.TimeLineView_timeLabelTextColor, mTimeLabelTextColor);
-            mTimeLabelSeparation = ta.getDimensionPixelSize(R.styleable.TimeLineView_timeLabelSeparation, mTimeLabelSeparation);
+            mDpPerMinute =      ta.getDimension(R.styleable.TimeLineView_dipPerMinute, mDpPerMinute);
 
-            mTimeLineThickness = ta.getDimension(R.styleable.TimeLineView_timeLineThickness, mTimeLineThickness);
-            mTimeLineColor = ta.getColor(R.styleable.TimeLineView_timeLineColor, mTimeLineColor);
+            mLabelPadding =     ta.getDimension(R.styleable.TimeLineView_labelPadding, mLabelPadding);
 
-            mHalfTimeLineThickness = ta.getDimension(R.styleable.TimeLineView_halfTimeLineThickness, mHalfTimeLineThickness);
-            mHalfTimeLineColor = ta.getColor(R.styleable.TimeLineView_halfTimeLineColor, mHalfTimeLineColor);
+            mDayLabelTextSize = ta.getDimension(R.styleable.TimeLineView_dayLabelTextSize, mDayLabelTextSize);
+            mDayLabelTextColor =ta.getColor(R.styleable.TimeLineView_dayLabelTextColor, mDayLabelTextColor);
+            mDayLabelSeparation =   ta.getDimensionPixelSize(R.styleable.TimeLineView_dayLabelSeparation, mDayLabelSeparation);
+
+            mHourLabelTextSize =    ta.getDimension(R.styleable.TimeLineView_hourLabelTextSize, mHourLabelTextSize);
+            mHourLabelTextColor =   ta.getColor(R.styleable.TimeLineView_hourLabelTextColor, mHourLabelTextColor);
+            mHourLabelSeparation =  ta.getDimensionPixelSize(R.styleable.TimeLineView_hourLabelSeparation, mHourLabelSeparation);
+
+            mHourLineThickness =    ta.getDimension(R.styleable.TimeLineView_hourLineThickness, mHourLineThickness);
+            mHourLineColor =        ta.getColor(R.styleable.TimeLineView_hourLineColor, mHourLineColor);
+
+            mHalfHourLineThickness =    ta.getDimension(R.styleable.TimeLineView_halfHourLineThickness, mHalfHourLineThickness);
+            mHalfHourLineColor =        ta.getColor(R.styleable.TimeLineView_halfHourLineColor, mHalfHourLineColor);
         } finally {
             ta.recycle();
         }
 
-        mTimeLabelPaint = new Paint();
-        mTimeLabelPaint.setAntiAlias(true);
-        mTimeLabelPaint.setTextSize(mTimeLabelTextSize);
-        mTimeLabelPaint.setTextAlign(Paint.Align.CENTER);
-        mTimeLabelPaint.setColor(mTimeLabelTextColor);
-        mTimeLabelHeight = (int)Math.abs(mTimeLabelPaint.getFontMetrics().top);
-        mTimeLabelMaxWidth = (int)mTimeLabelPaint.measureText("00"); //time - hour
+        mDayLabelPaint = new Paint();
+        mDayLabelPaint.setAntiAlias(true);
+        mDayLabelPaint.setTextSize(mDayLabelTextSize);
+        mDayLabelPaint.setTextAlign(Paint.Align.LEFT);
+        mDayLabelPaint.setColor(mDayLabelTextColor);
+        mDayLabelHeight = (int)Math.abs(mDayLabelPaint.getFontMetrics().top);
+        mDayLabelMaxWidth = (int)mDayLabelPaint.measureText("00"); //day-month-week
+
+        mHourLabelPaint = new Paint();
+        mHourLabelPaint.setAntiAlias(true);
+        mHourLabelPaint.setTextSize(mHourLabelTextSize);
+        mHourLabelPaint.setTextAlign(Paint.Align.LEFT);
+        mHourLabelPaint.setColor(mHourLabelTextColor);
+        mHourLabelHeight = (int)Math.abs(mHourLabelPaint.getFontMetrics().top);
+        mHourLabelMaxWidth = (int)mHourLabelPaint.measureText("00"); //time - hour
 
 
-        mTimeLinePaint = new Paint();
-        mTimeLinePaint.setAntiAlias(true);
-        mTimeLinePaint.setColor(mTimeLineColor);
-        mTimeLinePaint.setStrokeWidth(mTimeLineThickness);
-        mTimeLinePaint.setStyle(Paint.Style.STROKE);
+        mHourLinePaint = new Paint();
+        mHourLinePaint.setAntiAlias(true);
+        mHourLinePaint.setColor(mHourLineColor);
+        mHourLinePaint.setStrokeWidth(mHourLineThickness);
+        mHourLinePaint.setStyle(Paint.Style.STROKE);
 
-        mHalfTimeLinePaint = new Paint();
-        mHalfTimeLinePaint.setAntiAlias(true);
-        mHalfTimeLinePaint.setColor(mHalfTimeLineColor);
-        mHalfTimeLinePaint.setStrokeWidth(mHalfTimeLineThickness);
-        mHalfTimeLinePaint.setStyle(Paint.Style.STROKE);
+        mHalfHourLinePaint = new Paint();
+        mHalfHourLinePaint.setAntiAlias(true);
+        mHalfHourLinePaint.setColor(mHalfHourLineColor);
+        mHalfHourLinePaint.setStrokeWidth(mHalfHourLineThickness);
+        mHalfHourLinePaint.setStyle(Paint.Style.STROKE);
     }
 
     @Override
@@ -254,7 +280,7 @@ public class TimeLineView extends FrameLayout {
      * Utility method to initialize the scroller and start redrawing
      */
     public void fling(int velocityX, int velocityY) {
-        _log.d("fling: (velocityX, velocityY) = (" + velocityX + ", " + velocityY + ")");
+        //_log.d("fling: (velocityX, velocityY) = (" + velocityX + ", " + velocityY + ")");
         //if(getChildCount() > 0) {
             //int height = getHeight() - getPaddingTop() - getPaddingBottom();
             //int width = getWidth() - getPaddingLeft() - getPaddingRight();
@@ -372,21 +398,21 @@ public class TimeLineView extends FrameLayout {
         mVisibleStartMinutesX = new Tuple2<Long, Float>(currentCenterTimeInMinutes - (long)minutesLength, reminder);
         mVisibleEndMinutesX = new Tuple2<Long, Float>(currentCenterTimeInMinutes + (long)minutesLength, mCurrentContentRect.right - reminder);
 
-        long startHalfTimeReminder = mVisibleStartMinutesX.t % 30;
-        long startHalfTimeMinutes = mVisibleStartMinutesX.t + (30 - startHalfTimeReminder);
-        float startHalfTimeX = mVisibleStartMinutesX.s + (30 - startHalfTimeReminder)*mDpPerMinute;
-        mVisibleStartHalfTimeX = new Tuple2<Long, Float>(startHalfTimeMinutes, startHalfTimeX);
+        long startHalfHourReminder = mVisibleStartMinutesX.t % 30;
+        long startHalfHourMinutes = mVisibleStartMinutesX.t + (30 - startHalfHourReminder);
+        float startHalfHourX = mVisibleStartMinutesX.s + (30 - startHalfHourReminder)*mDpPerMinute;
+        mVisibleStartHalfHourX = new Tuple2<Long, Float>(startHalfHourMinutes, startHalfHourX);
 
-        long endHalfTimeReminder = mVisibleEndMinutesX.t % 30;
-        long endHalfTimeMinutes = mVisibleEndMinutesX.t - endHalfTimeReminder;
-        float endHalfTimeX = mVisibleEndMinutesX.s - endHalfTimeReminder * mDpPerMinute;
-        mVisibleEndHalfTimeX = new Tuple2<Long, Float>(endHalfTimeMinutes, endHalfTimeX);
+        long endHalfHourReminder = mVisibleEndMinutesX.t % 30;
+        long endHalfHourMinutes = mVisibleEndMinutesX.t - endHalfHourReminder;
+        float endHalfHourX = mVisibleEndMinutesX.s - endHalfHourReminder * mDpPerMinute;
+        mVisibleEndHalfHourX = new Tuple2<Long, Float>(endHalfHourMinutes, endHalfHourX);
 
 
         _log.d("mVisibleStartMinuetsX = " + mVisibleStartMinutesX.toString());
         _log.d("mVisibleEndMinuetsX = " + mVisibleEndMinutesX.toString());
-        _log.d("mVisibleStartHalfTimeX = " + mVisibleStartHalfTimeX.toString());
-        _log.d("mVisibleEndHalfTimeX = " + mVisibleEndHalfTimeX.toString());
+        _log.d("mVisibleStartHalfHourX = " + mVisibleStartHalfHourX.toString());
+        _log.d("mVisibleEndHalfHourX = " + mVisibleEndHalfHourX.toString());
         //for(int x = centerX; x > mCurrentContentRect.left; x -= mDpPerMinute) {
         //    //mVisibleTimeAndX.add(new Tuple2<Long, Integer>(timeInMinutesBackward, x));
         //    //mVisibleTimeAndXMap.put(timeInMinutesBackward--, x);
@@ -408,27 +434,59 @@ public class TimeLineView extends FrameLayout {
     private void drawTimeLines(Canvas canvas) {
         //_log.d("drawTimeLines");
 
-        float startHalfTimeX = mVisibleStartHalfTimeX.s;
+        float startHalfHourX = mVisibleStartHalfHourX.s;
         int index = 0;
-        for(long minutes = mVisibleStartHalfTimeX.t; minutes <= mVisibleEndHalfTimeX.t; minutes += 30) {
-            float x = mVisibleStartHalfTimeX.s + (index++) * mDpPerMinute * 30;
+
+        int dayLabelOffsetY = mCurrentContentRect.top + (int)Math.ceil(mLabelPadding) + mDayLabelHeight;
+        int dayLineStartY = mCurrentContentRect.top;
+        //int timeLabelOffsetY = mCurrentContentRect.top + mHourLabelHeight;
+        int hourLabelOffsetY = dayLabelOffsetY + (int)Math.ceil(mHourLineThickness) + (int)Math.ceil(mLabelPadding) + mHourLabelHeight;
+        //int timeLineStartY = mCurrentContentRect.top + mHourLabelSeparation + mHourLabelHeight;
+        int hourLineStartY = dayLabelOffsetY + (int)Math.ceil(mLabelPadding) + (int)Math.ceil(mHourLineThickness);
+        int halfHourLineStartY = hourLabelOffsetY + (int)Math.ceil(mLabelPadding) + (int)Math.ceil(mHourLineThickness);
+
+        // Draw horizontal lines
+        canvas.drawLine(mCurrentContentRect.left, hourLineStartY, mCurrentContentRect.right, hourLineStartY, mHourLinePaint);
+        canvas.drawLine(mCurrentContentRect.left, halfHourLineStartY, mCurrentContentRect.right, halfHourLineStartY, mHourLinePaint);
+
+        Calendar cal = Calendar.getInstance();
+        //DateFormat df = DateFormat.getDateInstance();
+        DateFormat df = DateFormat.getDateInstance(DateFormat.MEDIUM);
+
+        for(long minutes = mVisibleStartHalfHourX.t; minutes <= mVisibleEndHalfHourX.t; minutes += 30) {
+            float x = mVisibleStartHalfHourX.s + (index++) * mDpPerMinute * 30;
             //_log.d("drawTimeLines: x = " + x);
             if(minutes % 60 == 0) {
                 //hour
-                canvas.drawLine(x, mCurrentContentRect.top + mTimeLabelSeparation + mTimeLabelHeight, x, mCurrentContentRect.bottom, mTimeLinePaint);
-                canvas.drawText(String.valueOf(TimeUnit.MINUTES.toHours(minutes) % 24), x, mCurrentContentRect.top + mTimeLabelHeight, mTimeLabelPaint);
+                long hourOfDay = TimeUnit.MINUTES.toHours(minutes) % 24;
+                if(hourOfDay == 0) {
+                    long millis = TimeUnit.MINUTES.toMillis(minutes);
+                    cal.setTimeInMillis(millis);
+                    //int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
+                    //canvas.drawText(String.valueOf(dayOfMonth), x, dayLabelOffsetY, mDayLabelPaint);
+
+                    // day line
+                    canvas.drawLine(x, dayLineStartY, x, mCurrentContentRect.bottom, mHourLinePaint);
+                    String dateStr = df.format(cal.getTime());
+                    canvas.drawText(dateStr, x + mLabelPadding, dayLabelOffsetY, mDayLabelPaint);
+                    canvas.drawText(String.valueOf(hourOfDay), x + mLabelPadding, hourLabelOffsetY, mHourLabelPaint);
+                } else {
+                    // hour line
+                    canvas.drawLine(x, hourLineStartY, x, mCurrentContentRect.bottom, mHourLinePaint);
+                    canvas.drawText(String.valueOf(hourOfDay), x + mLabelPadding, hourLabelOffsetY, mHourLabelPaint);
+                }
             } else {
                 // half hour
-                canvas.drawLine(x, mCurrentContentRect.top + mTimeLabelSeparation + mTimeLabelHeight, x, mCurrentContentRect.bottom, mHalfTimeLinePaint);
+                canvas.drawLine(x, halfHourLineStartY, x, mCurrentContentRect.bottom, mHalfHourLinePaint);
             }
         }
         //for(Map.Entry<Long, Integer> minutePointEntry : mVisibleTimeAndXMap.entrySet()) {
         //    if(minutePointEntry.getKey() % 30 == 0) {
         //        if (minutePointEntry.getKey() % 60 == 0) {
-        //            canvas.drawLine(minutePointEntry.getValue(), mCurrentContentRect.top, minutePointEntry.getValue(), mCurrentContentRect.bottom, mTimeLinePaint);
+        //            canvas.drawLine(minutePointEntry.getValue(), mCurrentContentRect.top, minutePointEntry.getValue(), mCurrentContentRect.bottom, mHourLinePaint);
         //            _log.d("drawTimeLines: time x = " + minutePointEntry.getValue());
         //        } else {
-        //            canvas.drawLine(minutePointEntry.getValue(), mCurrentContentRect.top, minutePointEntry.getValue(), mCurrentContentRect.bottom, mHalfTimeLinePaint);
+        //            canvas.drawLine(minutePointEntry.getValue(), mCurrentContentRect.top, minutePointEntry.getValue(), mCurrentContentRect.bottom, mHalfHourLinePaint);
         //            _log.d("drawTimeLines: half time x = " + minutePointEntry.getValue());
         //        }
         //    }
