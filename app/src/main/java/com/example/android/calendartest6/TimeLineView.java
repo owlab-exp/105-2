@@ -265,8 +265,8 @@ public class TimeLineView extends FrameLayout {
                     velocityX, velocityY,
                     //0, Math.max(0, right - width),
                     //0, Math.max(0, bottom - height));
-                    0, Integer.MAX_VALUE,
-                    0, Integer.MAX_VALUE);
+                    Integer.MIN_VALUE, Integer.MAX_VALUE,
+                    Integer.MIN_VALUE, Integer.MAX_VALUE);
 
             // redraw
             //invalidate();
