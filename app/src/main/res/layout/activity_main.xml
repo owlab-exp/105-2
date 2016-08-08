@@ -29,14 +29,28 @@
             tp:timeLabelTextSize="14sp"
 
             tp:timeLineColor="#DDDDDD"
-            tp:timeLineThickness="1dp" />
+            tp:timeLineThickness="1dp"
+            />
 
     </FrameLayout>
     -->
-    <com.example.android.calendartest6.TimeLineView
+    <com.example.android.calendartest6.TimeLineView xmlns:tv="http://schemas.android.com/apk/res-auto"
         android:id="@+id/timeLineView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+
+        tv:dipPerMinute="1dp"
+        tv:nowLineColor="#FF7F6E"
+        tv:nowLineThickness="1dp"
+        tv:timeLineColor="#DDDDDD"
+        tv:timeLineThickness="1dp"
+        tv:halfTimeLineColor="#f0f2ec"
+        tv:halfTimeLineThickness="1dp"
+        tv:timeLabelTextColor="#555555"
+        tv:timeLabelTextSize="14sp"
+        tv:timeLabelSeparation="3dp"
+
+        >
 
     </com.example.android.calendartest6.TimeLineView>
 </android.support.design.widget.CoordinatorLayout>

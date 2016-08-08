@@ -1,13 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <attr name="nowLineThickness" format="dimension" />
+    <attr name="nowLineColor" format="color" />
+    <attr name="timeLabelTextSize" format="dimension" />
+    <attr name="timeLabelTextColor" format="color" />
+    <attr name="timeLineThickness" format="dimension" />
+    <attr name="timeLineColor" format="color" />
+    <attr name="halfTimeLineThickness" format="dimension" />
+    <attr name="halfTimeLineColor" format="color" />
     <declare-styleable name="TimeLineViewSimple">
-        <attr name="nowLineThickness" format="dimension" />
-        <attr name="nowLineColor" format="color" />
-        <attr name="timeLabelTextSize" format="dimension" />
-        <attr name="timeLabelTextColor" format="color" />
-        <attr name="timeLineThickness" format="dimension" />
-        <attr name="timeLineColor" format="color" />
-        <attr name="halfTimeLineThickness" format="dimension" />
-        <attr name="halfTimeLineColor" format="color" />
+        <attr name="nowLineThickness"/>
+        <attr name="nowLineColor" />
+        <attr name="timeLabelTextSize" />
+        <attr name="timeLabelTextColor" />
+        <attr name="timeLineThickness" />
+        <attr name="timeLineColor" />
+        <attr name="halfTimeLineThickness" />
+        <attr name="halfTimeLineColor" />
+    </declare-styleable>
+    <declare-styleable name="TimeLineView">
+        <attr name="dipPerMinute" format="dimension"/>
+        <attr name="nowLineThickness"/>
+        <attr name="nowLineColor" />
+        <attr name="timeLabelTextSize" />
+        <attr name="timeLabelTextColor" />
+        <attr name="timeLabelSeparation" format="dimension"/>
+        <attr name="timeLineThickness" />
+        <attr name="timeLineColor" />
+        <attr name="halfTimeLineThickness" />
+        <attr name="halfTimeLineColor" />
     </declare-styleable>
 </resources>

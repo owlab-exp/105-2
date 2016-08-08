@@ -1,8 +1,8 @@
 package com.example.android.calendartest6;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.os.Bundle;
@@ -15,11 +15,6 @@ import android.view.ViewConfiguration;
 import android.widget.FrameLayout;
 import android.widget.Scroller;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -55,14 +50,31 @@ public class TimeLineView extends FrameLayout {
 
     private Rect mCurrentContentRect = new Rect();
     //private PointF mCurrentTimePoint;
-    private int mDpPerMinute = 2;
     //private long mCurrentTimeInMinutes;
     private Tuple2<Long, Integer> mCurrentTimeAndX;
     private int mXDiff = 0;
-    private List<Tuple2<Long, Integer>> mVisibleTimeAndX = new ArrayList<>();
-    private SortedMap<Long, Integer> mVisibleTimeAndXMap = new TreeMap<>();
+    //private SortedMap<Long, Integer> mVisibleTimeAndXMap = new TreeMap<>();
+    private Tuple2<Long, Float> mVisibleStartMinutesX;
+    private Tuple2<Long, Float> mVisibleEndMinutesX;
+    private Tuple2<Long, Float> mVisibleStartHalfTimeX;
+    private Tuple2<Long, Float> mVisibleEndHalfTimeX;
 
-    private Paint mCurrentTimePaint = new Paint();
+    private float mDpPerMinute;
+
+    private Paint   mTimeLabelPaint;
+    private float   mTimeLabelTextSize;
+    private int     mTimeLabelTextColor;
+    private int     mTimeLabelHeight;
+    private int     mTimeLabelMaxWidth;
+    private int     mTimeLabelSeparation;
+
+    private Paint   mTimeLinePaint;
+    private float   mTimeLineThickness;
+    private int     mTimeLineColor;
+
+    private Paint   mHalfTimeLinePaint;
+    private float   mHalfTimeLineThickness;
+    private int     mHalfTimeLineColor;
 
     /* Listener to handle all the touch events */
     private GestureDetector.SimpleOnGestureListener mListener = new GestureDetector.SimpleOnGestureListener() {
@@ -76,14 +88,18 @@ public class TimeLineView extends FrameLayout {
 
         @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-            _log.d("onScroll: (dist X, dist Y) = (" + distanceX + ", " + distanceY + ")");
-            scrollBy((int)distanceX, (int)distanceY);
+            //_log.d("onScroll: (dist X, dist Y) = (" + distanceX + ", " + distanceY + ")");
+            //scrollBy((int)distanceX, (int)distanceY);
+            mXDiff += distanceX;
+
+            postInvalidateOnAnimation();
             return true;
         }
 
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            fling((int) -velocityX / 3, (int) -velocityY / 3);
+            //fling((int) -velocityX / 3, (int) -velocityY / 3);
+            fling((int) -velocityX / 2, (int) -velocityY / 2);
             return true;
         }
     };
@@ -96,10 +112,42 @@ public class TimeLineView extends FrameLayout {
         mScroller = new Scroller(ctx);
         mTouchSlop = ViewConfiguration.get(ctx).getScaledTouchSlop();
 
-        mCurrentTimePaint.setAntiAlias(true);
-        mCurrentTimePaint.setColor(Color.BLUE);
-        mCurrentTimePaint.setStrokeWidth(2.0f);
-        mCurrentTimePaint.setStyle(Paint.Style.STROKE);
+        TypedArray ta = ctx.getTheme().obtainStyledAttributes(attrs, R.styleable.TimeLineView, defStyleAttr, defStyleRes);
+        try {
+            mDpPerMinute = ta.getDimension(R.styleable.TimeLineView_dipPerMinute, mDpPerMinute);
+            mTimeLabelTextSize = ta.getDimension(R.styleable.TimeLineView_timeLabelTextSize, mTimeLabelTextSize);
+            mTimeLabelTextColor = ta.getColor(R.styleable.TimeLineView_timeLabelTextColor, mTimeLabelTextColor);
+            mTimeLabelSeparation = ta.getDimensionPixelSize(R.styleable.TimeLineView_timeLabelSeparation, mTimeLabelSeparation);
+
+            mTimeLineThickness = ta.getDimension(R.styleable.TimeLineView_timeLineThickness, mTimeLineThickness);
+            mTimeLineColor = ta.getColor(R.styleable.TimeLineView_timeLineColor, mTimeLineColor);
+
+            mHalfTimeLineThickness = ta.getDimension(R.styleable.TimeLineView_halfTimeLineThickness, mHalfTimeLineThickness);
+            mHalfTimeLineColor = ta.getColor(R.styleable.TimeLineView_halfTimeLineColor, mHalfTimeLineColor);
+        } finally {
+            ta.recycle();
+        }
+
+        mTimeLabelPaint = new Paint();
+        mTimeLabelPaint.setAntiAlias(true);
+        mTimeLabelPaint.setTextSize(mTimeLabelTextSize);
+        mTimeLabelPaint.setTextAlign(Paint.Align.CENTER);
+        mTimeLabelPaint.setColor(mTimeLabelTextColor);
+        mTimeLabelHeight = (int)Math.abs(mTimeLabelPaint.getFontMetrics().top);
+        mTimeLabelMaxWidth = (int)mTimeLabelPaint.measureText("00"); //time - hour
+
+
+        mTimeLinePaint = new Paint();
+        mTimeLinePaint.setAntiAlias(true);
+        mTimeLinePaint.setColor(mTimeLineColor);
+        mTimeLinePaint.setStrokeWidth(mTimeLineThickness);
+        mTimeLinePaint.setStyle(Paint.Style.STROKE);
+
+        mHalfTimeLinePaint = new Paint();
+        mHalfTimeLinePaint.setAntiAlias(true);
+        mHalfTimeLinePaint.setColor(mHalfTimeLineColor);
+        mHalfTimeLinePaint.setStrokeWidth(mHalfTimeLineThickness);
+        mHalfTimeLinePaint.setStyle(Paint.Style.STROKE);
     }
 
     @Override
@@ -119,9 +167,11 @@ public class TimeLineView extends FrameLayout {
 
     @Override
     public void computeScroll() {
+        _log.d("computeScroll");
+
         if(mScroller.computeScrollOffset()) {
-            _log.d("computeScroll: ");
             // This is called at drawing time by ViewGroup. This is used to keep the fling animation through to completion
+            _log.d("computeScroll:computeScrollOffset - TRUE");
             int oldX = getScrollX();
             int oldY = getScrollY();
             int x = mScroller.getCurrX();
@@ -134,7 +184,8 @@ public class TimeLineView extends FrameLayout {
             //    y = clamp(y, getHeight() - getPaddingTop() - getPaddingBottom(), child.getHeight());
 
                 if(x != oldX || y != oldY) {
-                    scrollTo(x, y);
+                    //scrollTo(x, y);
+                    mXDiff += x;
                     postInvalidateOnAnimation();
                 }
             //}
@@ -142,24 +193,27 @@ public class TimeLineView extends FrameLayout {
         }
     }
 
-    // Override scrollTo to do bounds checks on any scrolling request
-    @Override
-    public void scrollTo(int x, int y) {
-        _log.d("scrollTo: x = " + x);
+    //// Override scrollTo to do bounds checks on any scrolling request
+    //@Override
+    //public void scrollTo(int x, int y) {
+    //    _log.d("scrollTo: x = " + x);
 
-        mXDiff += x;
-        // TODO: ? : We rely on the fact the View.scrollBy calls scrollTo.
-        //if(getChildCount() > 0) {
-        //    View child = getChildAt(0);
-        //    //TODO: clamp child
-        //    x = clamp(x, getWidth() - getPaddingRight() - getPaddingLeft(), child.getWidth());
-        //    y = clamp(y, getHeight() - getPaddingTop() - getPaddingBottom(), child.getHeight());
+    //    mXDiff += x;
+    //    // TODO: ? : We rely on the fact the View.scrollBy calls scrollTo.
+    //    //if(getChildCount() > 0) {
+    //    //    View child = getChildAt(0);
+    //    //    //TODO: clamp child
+    //    //    x = clamp(x, getWidth() - getPaddingRight() - getPaddingLeft(), child.getWidth());
+    //    //    y = clamp(y, getHeight() - getPaddingTop() - getPaddingBottom(), child.getHeight());
 
-        //    if(x != getScrollX() || y != getScrollY()) {
-                super.scrollTo(x, y);
-        //    }
-        //}
-    }
+    //    //    if(x != getScrollX() || y != getScrollY()) {
+    //    //        super.scrollTo(x, y);
+
+    //    // Only scroll horizontally!
+    //    super.scrollTo(x, 0);
+    //    //    }
+    //    //}
+    //}
 
     /**
      * Monitor touch events passed down to the children and intercept as soon as it is determined we are dragging
@@ -180,6 +234,7 @@ public class TimeLineView extends FrameLayout {
                 final int yDiff = (int)Math.abs(y - mMotionInitY);
                 if(xDiff > mTouchSlop || yDiff > mTouchSlop) {
                     //Start capturing events
+                    _log.d("onInterceptTouchEvent: captured");
                     return true;
                 }
                 break;
@@ -205,6 +260,7 @@ public class TimeLineView extends FrameLayout {
             //int width = getWidth() - getPaddingLeft() - getPaddingRight();
             //int bottom = getChildAt(0).getHeight();
             //int right = getChildAt(0).getWidth();
+        mScroller.forceFinished(true);
             mScroller.fling(getScrollX(), getScrollY(),
                     velocityX, velocityY,
                     //0, Math.max(0, right - width),
@@ -218,23 +274,23 @@ public class TimeLineView extends FrameLayout {
         postInvalidateOnAnimation();
     }
 
-    /**
-     * Utility method to assist in doing bound checking
-     */
-    private int clamp(int n, int my, int child) {
-        if(my >= child || n < 0) {
-            // The child is beyond one of the parent bounds
-            // or is smaller than the parent and can't scroll
-            return 0;
-        }
+   // /**
+   //  * Utility method to assist in doing bound checking
+   //  */
+   // private int clamp(int n, int my, int child) {
+   //     if(my >= child || n < 0) {
+   //         // The child is beyond one of the parent bounds
+   //         // or is smaller than the parent and can't scroll
+   //         return 0;
+   //     }
 
-        if((my + n) > child) {
-            // Request scroll is beyond right bound of child
-            return child -my;
-        }
-
-        return n;
-    }
+   //     if((my + n) > child) {
+   //         // Request scroll is beyond right bound of child
+   //         return child -my;
+   //     }
+   //
+   //     return n;
+   // }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldW, int oldH) {
@@ -283,7 +339,9 @@ public class TimeLineView extends FrameLayout {
 
         computeVisibleTimes();
 
-        drawUnits(canvas);
+        drawTimeLines(canvas);
+
+        //_log.d("mDpPerMinute = " + mDpPerMinute);
 
     }
 
@@ -291,38 +349,90 @@ public class TimeLineView extends FrameLayout {
         //// Based on the initial current time and X
         //// Compute time (int minutes) and X by differences from moved X (by scroll)
         //mVisibleTimeAndX.clear();
-        mVisibleTimeAndXMap.clear();
+        //mVisibleTimeAndXMap.clear();
 
-        int minutesDiff = mXDiff / mDpPerMinute;
+        int minutesDiff = mXDiff / (int)mDpPerMinute;
         long currentCenterTimeInMinutes = mCurrentTimeAndX.t + minutesDiff;
 
         int centerX = mCurrentContentRect.centerX();
         long timeInMinutesBackward =  currentCenterTimeInMinutes;
 
-        for(int x = centerX; x > mCurrentContentRect.left; x -= mDpPerMinute) {
-            //mVisibleTimeAndX.add(new Tuple2<Long, Integer>(timeInMinutesBackward, x));
-            mVisibleTimeAndXMap.put(timeInMinutesBackward--, x);
-        //    timeInMinutesBackward--;
-        }
+        _log.d("centerX = " + centerX);
+        _log.d("mCurrentContentRect.left = " + mCurrentContentRect.left);
+        _log.d("mCurrentContentRect.right = " + mCurrentContentRect.right);
+        _log.d("mCurrentContentRect.top = " + mCurrentContentRect.top);
+        _log.d("mCurrentContentRect.bottom = " + mCurrentContentRect.bottom);
 
-        long timeInMinutesForward =  currentCenterTimeInMinutes + 1;
-        for(int x = centerX + mDpPerMinute; x < mCurrentContentRect.right; x += mDpPerMinute) {
-        //    mVisibleTimeAndX.add(new Tuple2<Long, Integer>(timeInMinutesForward, x));
-            mVisibleTimeAndXMap.put(timeInMinutesForward++, x);
-        //    timeInMinutesForward++;
-        }
+        float halfWidth = (float) centerX;
+        float reminder = halfWidth % mDpPerMinute;
+        _log.d("reminder = " + reminder);
+        float minutesLength = (halfWidth - reminder) / mDpPerMinute;
+        _log.d("minutesLength = " + minutesLength);
 
-        //for(Tuple2<Long, Integer> timePointTuple: mVisibleTimeAndX) {
-        //    _log.d("computeVisibleTimes: tuple = " + timePointTuple.toString());
+        mVisibleStartMinutesX = new Tuple2<Long, Float>(currentCenterTimeInMinutes - (long)minutesLength, reminder);
+        mVisibleEndMinutesX = new Tuple2<Long, Float>(currentCenterTimeInMinutes + (long)minutesLength, mCurrentContentRect.right - reminder);
+
+        long startHalfTimeReminder = mVisibleStartMinutesX.t % 30;
+        long startHalfTimeMinutes = mVisibleStartMinutesX.t + (30 - startHalfTimeReminder);
+        float startHalfTimeX = mVisibleStartMinutesX.s + (30 - startHalfTimeReminder)*mDpPerMinute;
+        mVisibleStartHalfTimeX = new Tuple2<Long, Float>(startHalfTimeMinutes, startHalfTimeX);
+
+        long endHalfTimeReminder = mVisibleEndMinutesX.t % 30;
+        long endHalfTimeMinutes = mVisibleEndMinutesX.t - endHalfTimeReminder;
+        float endHalfTimeX = mVisibleEndMinutesX.s - endHalfTimeReminder * mDpPerMinute;
+        mVisibleEndHalfTimeX = new Tuple2<Long, Float>(endHalfTimeMinutes, endHalfTimeX);
+
+
+        _log.d("mVisibleStartMinuetsX = " + mVisibleStartMinutesX.toString());
+        _log.d("mVisibleEndMinuetsX = " + mVisibleEndMinutesX.toString());
+        _log.d("mVisibleStartHalfTimeX = " + mVisibleStartHalfTimeX.toString());
+        _log.d("mVisibleEndHalfTimeX = " + mVisibleEndHalfTimeX.toString());
+        //for(int x = centerX; x > mCurrentContentRect.left; x -= mDpPerMinute) {
+        //    //mVisibleTimeAndX.add(new Tuple2<Long, Integer>(timeInMinutesBackward, x));
+        //    //mVisibleTimeAndXMap.put(timeInMinutesBackward--, x);
+        ////    timeInMinutesBackward--;
         //}
-        for(Map.Entry<Long, Integer> entry: mVisibleTimeAndXMap.entrySet()) {
-            _log.d("computeVisibleTimes: entry : " + entry.toString());
-        }
+
+        //long timeInMinutesForward =  currentCenterTimeInMinutes + 1;
+        //for(int x = centerX + (int) mDpPerMinute; x < mCurrentContentRect.right; x += mDpPerMinute) {
+        ////    mVisibleTimeAndX.add(new Tuple2<Long, Integer>(timeInMinutesForward, x));
+        //    //mVisibleTimeAndXMap.put(timeInMinutesForward++, x);
+        ////    timeInMinutesForward++;
+        //}
+
+        //for(Map.Entry<Long, Integer> entry: mVisibleTimeAndXMap.entrySet()) {
+        //    _log.d("computeVisibleTimes: entry : " + entry.toString());
+        //}
     }
 
-    private void drawUnits(Canvas canvas) {
-        _log.d("drawUnits");
-        //canvas.drawLine(mCurrentTimePoint.x, mCurrentContentRect.top, mCurrentTimePoint.x, mCurrentContentRect.bottom, mCurrentTimePaint);
+    private void drawTimeLines(Canvas canvas) {
+        //_log.d("drawTimeLines");
+
+        float startHalfTimeX = mVisibleStartHalfTimeX.s;
+        int index = 0;
+        for(long minutes = mVisibleStartHalfTimeX.t; minutes <= mVisibleEndHalfTimeX.t; minutes += 30) {
+            float x = mVisibleStartHalfTimeX.s + (index++) * mDpPerMinute * 30;
+            //_log.d("drawTimeLines: x = " + x);
+            if(minutes % 60 == 0) {
+                //hour
+                canvas.drawLine(x, mCurrentContentRect.top + mTimeLabelSeparation + mTimeLabelHeight, x, mCurrentContentRect.bottom, mTimeLinePaint);
+                canvas.drawText(String.valueOf(TimeUnit.MINUTES.toHours(minutes) % 24), x, mCurrentContentRect.top + mTimeLabelHeight, mTimeLabelPaint);
+            } else {
+                // half hour
+                canvas.drawLine(x, mCurrentContentRect.top + mTimeLabelSeparation + mTimeLabelHeight, x, mCurrentContentRect.bottom, mHalfTimeLinePaint);
+            }
+        }
+        //for(Map.Entry<Long, Integer> minutePointEntry : mVisibleTimeAndXMap.entrySet()) {
+        //    if(minutePointEntry.getKey() % 30 == 0) {
+        //        if (minutePointEntry.getKey() % 60 == 0) {
+        //            canvas.drawLine(minutePointEntry.getValue(), mCurrentContentRect.top, minutePointEntry.getValue(), mCurrentContentRect.bottom, mTimeLinePaint);
+        //            _log.d("drawTimeLines: time x = " + minutePointEntry.getValue());
+        //        } else {
+        //            canvas.drawLine(minutePointEntry.getValue(), mCurrentContentRect.top, minutePointEntry.getValue(), mCurrentContentRect.bottom, mHalfTimeLinePaint);
+        //            _log.d("drawTimeLines: half time x = " + minutePointEntry.getValue());
+        //        }
+        //    }
+        //}
     }
 
     /**
