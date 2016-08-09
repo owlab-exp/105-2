@@ -5,6 +5,7 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.AttributeSet;
@@ -16,7 +17,10 @@ import android.widget.FrameLayout;
 import android.widget.Scroller;
 
 import java.text.DateFormat;
+import java.text.DateFormatSymbols;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -150,6 +154,7 @@ public class TimeLineView extends FrameLayout {
         mDayLabelPaint.setAntiAlias(true);
         mDayLabelPaint.setTextSize(mDayLabelTextSize);
         mDayLabelPaint.setTextAlign(Paint.Align.CENTER);
+        mDayLabelPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
         mDayLabelPaint.setColor(mDayLabelTextColor);
         mDayLabelHeight = (int)Math.abs(mDayLabelPaint.getFontMetrics().top);
         mDayLabelMaxWidth = (int)mDayLabelPaint.measureText("WWW AAA 00, 0000"); //month-day-year
@@ -452,6 +457,19 @@ public class TimeLineView extends FrameLayout {
         Calendar cal = Calendar.getInstance();
         //DateFormat df = DateFormat.getDateInstance();
         DateFormat df = DateFormat.getDateInstance(DateFormat.MEDIUM);
+        String[] weekdays = new DateFormatSymbols().getShortWeekdays();
+
+        List<Tuple2<Float, Float>> dayLabelXOffsets = new ArrayList<>();
+        //dayLabelXStarts.add(mCurrentContentRect.left);
+
+        List<String> dayLabelTexts = new ArrayList<>();
+        long startMillis = TimeUnit.MINUTES.toMillis(mVisibleStartHalfHourX.t); // this is not really the starting minutes
+        cal.setTimeInMillis(startMillis);
+        String startWeekDayShort = weekdays[cal.get(Calendar.DAY_OF_WEEK)];
+        String startDayStr = startWeekDayShort + " " + df.format(cal.getTime());
+        dayLabelTexts.add(startDayStr);
+
+        float dayLabelXStart = (float)mCurrentContentRect.left;
 
         for(long minutes = mVisibleStartHalfHourX.t; minutes <= mVisibleEndHalfHourX.t; minutes += 30) {
             float x = mVisibleStartHalfHourX.s + (index++) * mDpPerMinute * 30;
@@ -462,24 +480,59 @@ public class TimeLineView extends FrameLayout {
                 if(hourOfDay == 0) {
                     long millis = TimeUnit.MINUTES.toMillis(minutes);
                     cal.setTimeInMillis(millis);
+                    String weekDayShort = weekdays[cal.get(Calendar.DAY_OF_WEEK)];
+                    String dayStr = weekDayShort + " " + df.format(cal.getTime());
+
+                    //Day text and starting position
+                    //previous center
+                    _log.d("intermediate slice: " + dayLabelXStart + ", " + x);
+                    dayLabelXOffsets.add(new Tuple2<Float, Float>(dayLabelXStart, x));
+                    dayLabelXStart = x;
+                    //next
+                    dayLabelTexts.add(dayStr);
                     //int dayOfMonth = cal.get(Calendar.DAY_OF_MONTH);
                     //canvas.drawText(String.valueOf(dayOfMonth), x, dayLabelOffsetY, mDayLabelPaint);
 
-                    // day line
+                    // day line vertical
                     canvas.drawLine(x, dayLineStartY, x, mCurrentContentRect.bottom, mHourLinePaint);
-                    String dateStr = df.format(cal.getTime());
-                    canvas.drawText(dateStr, x + mLabelPadding, dayLabelOffsetY, mDayLabelPaint);
+                    //canvas.drawText(dayStr, x + mLabelPadding, dayLabelOffsetY, mDayLabelPaint);
+
+                    // draw text hour 0
                     canvas.drawText(String.valueOf(hourOfDay), x + mLabelPadding, hourLabelOffsetY, mHourLabelPaint);
                 } else {
-                    // hour line
+                    // hour line vertical
                     canvas.drawLine(x, hourLineStartY, x, mCurrentContentRect.bottom, mHourLinePaint);
                     canvas.drawText(String.valueOf(hourOfDay), x + mLabelPadding, hourLabelOffsetY, mHourLabelPaint);
                 }
             } else {
-                // half hour
+                // half hour line vertical
                 canvas.drawLine(x, halfHourLineStartY, x, mCurrentContentRect.bottom, mHalfHourLinePaint);
             }
         }
+        dayLabelXOffsets.add(new Tuple2<Float, Float>(dayLabelXStart, (float)mCurrentContentRect.right));
+        _log.d("last slice: " + dayLabelXStart + ", " + mCurrentContentRect.right);
+
+        for(int i = 0; i < dayLabelTexts.size(); i++) {
+            String dayLabelText = dayLabelTexts.get(i);
+            float dayLabelOffSetStartX = dayLabelXOffsets.get(i).t;
+            float dayLabelOffSetEndX = dayLabelXOffsets.get(i).s;
+            float labelHolderWidth = dayLabelOffSetEndX - dayLabelOffSetStartX;
+            if(labelHolderWidth > mDayLabelMaxWidth) {
+                _log.d("slice center: " + (dayLabelOffSetEndX - dayLabelOffSetStartX)/2);
+                canvas.drawText(dayLabelText, (dayLabelOffSetEndX + dayLabelOffSetStartX)/2, dayLabelOffsetY, mDayLabelPaint);
+            }
+            //if(labelHolderWidth <= mDayLabelMaxWidth/2) {
+            //    if(dayLabelOffSetStartX == (int) mCurrentContentRect.left) {
+            //        mDayLabelPaint.setTextAlign(Paint.Align.RIGHT);
+            //        canvas.drawText(dayLabelText, dayLabelOffSetEndX, dayLabelOffsetY, mDayLabelPaint);
+            //    } else if(dayLabelOffSetEndX == (int) mCurrentContentRect.right) {
+            //        mDayLabelPaint.setTextAlign(Paint.Align.LEFT);
+            //        canvas.drawText(dayLabelText, dayLabelOffSetStartX, dayLabelOffsetY, mDayLabelPaint);
+            //    }
+
+            //}
+        }
+
         //for(Map.Entry<Long, Integer> minutePointEntry : mVisibleTimeAndXMap.entrySet()) {
         //    if(minutePointEntry.getKey() % 30 == 0) {
         //        if (minutePointEntry.getKey() % 60 == 0) {
