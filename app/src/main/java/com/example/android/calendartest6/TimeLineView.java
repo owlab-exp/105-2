@@ -514,7 +514,8 @@ public class TimeLineView extends FrameLayout {
 
         // if the label place width is greater than label max width, locate the label on the center of the place,
         // if the label place width is smaller than the label max width,
-        // check if the starting is zero, then locate the label
+        // check if the starting point is zero, or if the ending point is right end of the current rect ...
+        //
         for(int i = 0; i < dayLabelTexts.size(); i++) {
             String dayLabelText = dayLabelTexts.get(i);
             float dayLabelOffSetStartX = dayLabelXOffsets.get(i).t;
@@ -532,29 +533,7 @@ public class TimeLineView extends FrameLayout {
                     canvas.drawText(dayLabelText, dayLabelOffSetStartX + mDayLabelMaxWidth/2, dayLabelOffsetY, mDayLabelPaint);
                 }
             }
-            //if(labelHolderWidth <= mDayLabelMaxWidth/2) {
-            //    if(dayLabelOffSetStartX == (int) mCurrentContentRect.left) {
-            //        mDayLabelPaint.setTextAlign(Paint.Align.RIGHT);
-            //        canvas.drawText(dayLabelText, dayLabelOffSetEndX, dayLabelOffsetY, mDayLabelPaint);
-            //    } else if(dayLabelOffSetEndX == (int) mCurrentContentRect.right) {
-            //        mDayLabelPaint.setTextAlign(Paint.Align.LEFT);
-            //        canvas.drawText(dayLabelText, dayLabelOffSetStartX, dayLabelOffsetY, mDayLabelPaint);
-            //    }
-
-            //}
         }
-
-        //for(Map.Entry<Long, Integer> minutePointEntry : mVisibleTimeAndXMap.entrySet()) {
-        //    if(minutePointEntry.getKey() % 30 == 0) {
-        //        if (minutePointEntry.getKey() % 60 == 0) {
-        //            canvas.drawLine(minutePointEntry.getValue(), mCurrentContentRect.top, minutePointEntry.getValue(), mCurrentContentRect.bottom, mHourLinePaint);
-        //            _log.d("drawTimeLines: time x = " + minutePointEntry.getValue());
-        //        } else {
-        //            canvas.drawLine(minutePointEntry.getValue(), mCurrentContentRect.top, minutePointEntry.getValue(), mCurrentContentRect.bottom, mHalfHourLinePaint);
-        //            _log.d("drawTimeLines: half time x = " + minutePointEntry.getValue());
-        //        }
-        //    }
-        //}
     }
 
     /**
