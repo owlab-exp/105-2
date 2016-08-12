@@ -512,14 +512,25 @@ public class TimeLineView extends FrameLayout {
         dayLabelXOffsets.add(new Tuple2<Float, Float>(dayLabelXStart, (float)mCurrentContentRect.right));
         _log.d("last slice: " + dayLabelXStart + ", " + mCurrentContentRect.right);
 
+        // if the label place width is greater than label max width, locate the label on the center of the place,
+        // if the label place width is smaller than the label max width,
+        // check if the starting is zero, then locate the label
         for(int i = 0; i < dayLabelTexts.size(); i++) {
             String dayLabelText = dayLabelTexts.get(i);
             float dayLabelOffSetStartX = dayLabelXOffsets.get(i).t;
             float dayLabelOffSetEndX = dayLabelXOffsets.get(i).s;
-            float labelHolderWidth = dayLabelOffSetEndX - dayLabelOffSetStartX;
-            if(labelHolderWidth > mDayLabelMaxWidth) {
+            float labelPlaceWidth = dayLabelOffSetEndX - dayLabelOffSetStartX;
+            if(labelPlaceWidth >= mDayLabelMaxWidth) {
                 _log.d("slice center: " + (dayLabelOffSetEndX - dayLabelOffSetStartX)/2);
                 canvas.drawText(dayLabelText, (dayLabelOffSetEndX + dayLabelOffSetStartX)/2, dayLabelOffsetY, mDayLabelPaint);
+            }
+            if(labelPlaceWidth < mDayLabelMaxWidth) {
+                if(dayLabelOffSetStartX == (int) mCurrentContentRect.left) {
+                    canvas.drawText(dayLabelText, dayLabelOffSetEndX - mDayLabelMaxWidth/2, dayLabelOffsetY, mDayLabelPaint);
+                }
+                if(dayLabelOffSetEndX == (int) mCurrentContentRect.right) {
+                    canvas.drawText(dayLabelText, dayLabelOffSetStartX + mDayLabelMaxWidth/2, dayLabelOffsetY, mDayLabelPaint);
+                }
             }
             //if(labelHolderWidth <= mDayLabelMaxWidth/2) {
             //    if(dayLabelOffSetStartX == (int) mCurrentContentRect.left) {
