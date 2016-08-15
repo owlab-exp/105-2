@@ -18,7 +18,7 @@
         <attr name="halfTimeLineThickness" />
         <attr name="halfTimeLineColor" />
     </declare-styleable>
-    <declare-styleable name="TimeLineView">
+    <declare-styleable name="HourLineLayout">
         <attr name="dipPerMinute" format="dimension"/>
         <attr name="nowLineThickness"/>
         <attr name="nowLineColor" />

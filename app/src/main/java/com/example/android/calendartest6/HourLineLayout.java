@@ -4,15 +4,18 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.util.AttributeSet;
+import android.view.Display;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Scroller;
 
@@ -26,22 +29,22 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by ernest on 8/7/16.
  */
-public class TimeLineView extends FrameLayout {
-    private static final LOG _log = new LOG(TimeLineView.class);
+public class HourLineLayout extends FrameLayout {
+    private static final LOG _log = new LOG(HourLineLayout.class);
 
-    public TimeLineView(Context context) {
+    public HourLineLayout(Context context) {
         this(context, null);
     }
 
-    public TimeLineView(Context context, AttributeSet attrs) {
+    public HourLineLayout(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public TimeLineView(Context context, AttributeSet attrs, int defStyleAttr) {
+    public HourLineLayout(Context context, AttributeSet attrs, int defStyleAttr) {
         this(context, attrs, defStyleAttr, 0);
     }
 
-    public TimeLineView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+    public HourLineLayout(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
 
         init(context, attrs, defStyleAttr, defStyleRes);
@@ -127,25 +130,25 @@ public class TimeLineView extends FrameLayout {
         mScroller = new Scroller(ctx);
         mTouchSlop = ViewConfiguration.get(ctx).getScaledTouchSlop();
 
-        TypedArray ta = ctx.getTheme().obtainStyledAttributes(attrs, R.styleable.TimeLineView, defStyleAttr, defStyleRes);
+        TypedArray ta = ctx.getTheme().obtainStyledAttributes(attrs, R.styleable.HourLineLayout, defStyleAttr, defStyleRes);
         try {
-            mDpPerMinute =      ta.getDimension(R.styleable.TimeLineView_dipPerMinute, mDpPerMinute);
+            mDpPerMinute =      ta.getDimension(R.styleable.HourLineLayout_dipPerMinute, mDpPerMinute);
 
-            mLabelPadding =     ta.getDimension(R.styleable.TimeLineView_labelPadding, mLabelPadding);
+            mLabelPadding =     ta.getDimension(R.styleable.HourLineLayout_labelPadding, mLabelPadding);
 
-            mDayLabelTextSize = ta.getDimension(R.styleable.TimeLineView_dayLabelTextSize, mDayLabelTextSize);
-            mDayLabelTextColor =ta.getColor(R.styleable.TimeLineView_dayLabelTextColor, mDayLabelTextColor);
-            mDayLabelSeparation =   ta.getDimensionPixelSize(R.styleable.TimeLineView_dayLabelSeparation, mDayLabelSeparation);
+            mDayLabelTextSize = ta.getDimension(R.styleable.HourLineLayout_dayLabelTextSize, mDayLabelTextSize);
+            mDayLabelTextColor =ta.getColor(R.styleable.HourLineLayout_dayLabelTextColor, mDayLabelTextColor);
+            mDayLabelSeparation =   ta.getDimensionPixelSize(R.styleable.HourLineLayout_dayLabelSeparation, mDayLabelSeparation);
 
-            mHourLabelTextSize =    ta.getDimension(R.styleable.TimeLineView_hourLabelTextSize, mHourLabelTextSize);
-            mHourLabelTextColor =   ta.getColor(R.styleable.TimeLineView_hourLabelTextColor, mHourLabelTextColor);
-            mHourLabelSeparation =  ta.getDimensionPixelSize(R.styleable.TimeLineView_hourLabelSeparation, mHourLabelSeparation);
+            mHourLabelTextSize =    ta.getDimension(R.styleable.HourLineLayout_hourLabelTextSize, mHourLabelTextSize);
+            mHourLabelTextColor =   ta.getColor(R.styleable.HourLineLayout_hourLabelTextColor, mHourLabelTextColor);
+            mHourLabelSeparation =  ta.getDimensionPixelSize(R.styleable.HourLineLayout_hourLabelSeparation, mHourLabelSeparation);
 
-            mHourLineThickness =    ta.getDimension(R.styleable.TimeLineView_hourLineThickness, mHourLineThickness);
-            mHourLineColor =        ta.getColor(R.styleable.TimeLineView_hourLineColor, mHourLineColor);
+            mHourLineThickness =    ta.getDimension(R.styleable.HourLineLayout_hourLineThickness, mHourLineThickness);
+            mHourLineColor =        ta.getColor(R.styleable.HourLineLayout_hourLineColor, mHourLineColor);
 
-            mHalfHourLineThickness =    ta.getDimension(R.styleable.TimeLineView_halfHourLineThickness, mHalfHourLineThickness);
-            mHalfHourLineColor =        ta.getColor(R.styleable.TimeLineView_halfHourLineColor, mHalfHourLineColor);
+            mHalfHourLineThickness =    ta.getDimension(R.styleable.HourLineLayout_halfHourLineThickness, mHalfHourLineThickness);
+            mHalfHourLineColor =        ta.getColor(R.styleable.HourLineLayout_halfHourLineColor, mHalfHourLineColor);
         } finally {
             ta.recycle();
         }
@@ -339,6 +342,44 @@ public class TimeLineView extends FrameLayout {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        // To draw children
+        int count = getChildCount();
+        _log.d("onMeasure: child count: " + count);
+        // Measurement will ultimately be computing these values.
+        int maxHeight = 0;
+        int maxWidth = 0;
+        int childState = 0;
+        int mLeftWidth = 0;
+        int rowCount = 0;
+
+        // Iterate through all children, measuring them and computing our dimensions
+        // from their size.
+        final Display display = ((WindowManager)getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+        Point deviceDisplay = new Point();
+        display.getSize(deviceDisplay);
+
+        for (int i = 0; i < count; i++) {
+            final View child = getChildAt(i);
+
+            if (child.getVisibility() == GONE)
+                continue;
+
+            // Measure the child.
+            measureChild(child, widthMeasureSpec, heightMeasureSpec);
+            maxWidth += Math.max(maxWidth, child.getMeasuredWidth());
+            mLeftWidth += child.getMeasuredWidth();
+
+
+            if ((mLeftWidth / deviceDisplay.x) > rowCount) {
+                maxHeight += child.getMeasuredHeight();
+                rowCount++;
+            } else {
+                maxHeight = Math.max(maxHeight, child.getMeasuredHeight());
+            }
+            childState = combineMeasuredStates(childState, child.getMeasuredState());
+        }
+
+        // To draw THIS
         int minPlaneSize = 1;
         int w = Math.max(getSuggestedMinimumWidth(), resolveSize(minPlaneSize + getPaddingLeft() + getPaddingRight(), widthMeasureSpec));
         int h = Math.max(getSuggestedMinimumHeight(), resolveSize(minPlaneSize + getPaddingTop() + getPaddingBottom(), heightMeasureSpec));
@@ -564,5 +605,11 @@ public class TimeLineView extends FrameLayout {
             state = bundle.getParcelable("superState");
         }
         super.onRestoreInstanceState(state);
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        _log.d("onLayout");
     }
 }
