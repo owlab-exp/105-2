@@ -18,7 +18,7 @@ public class MainActivity extends AppCompatActivity {
 
         FrameLayout.LayoutParams testParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         Button btn = new Button(this);
-        btn.setText("Button");
+        btn.setText("Test Child");
         btn.setLayoutParams(testParams);
         //tlv.addView(btn, testParams);
         tlv.addView(btn, 1000, 1000);
