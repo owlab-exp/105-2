@@ -28,4 +28,9 @@ public class Tuple2<T, S> implements Serializable {
         return Objects.hash(t, s);
     }
 
+    @Override
+    public String toString() {
+        return "{" + Objects.toString(t) + ", " + Objects.toString(s) + "}";
+    }
+
 }

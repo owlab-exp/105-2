@@ -360,9 +360,11 @@ public class HourLineLayout extends FrameLayout {
 
         for (int i = 0; i < count; i++) {
             final View child = getChildAt(i);
+            _log.d("onMeasure: child.visility: " + child.getVisibility());
 
-            if (child.getVisibility() == GONE)
+            if (child.getVisibility() == GONE) {
                 continue;
+            }
 
             // Measure the child.
             measureChild(child, widthMeasureSpec, heightMeasureSpec);

@@ -17,11 +17,13 @@ public class MainActivity extends AppCompatActivity {
         HourLineLayout tlv = (HourLineLayout)findViewById(R.id.timeLineView);
 
         FrameLayout.LayoutParams testParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        //To position, use margin. Any other way?
+        testParams.setMargins(100, 100, 0, 0);
         Button btn = new Button(this);
         btn.setText("Test Child");
         btn.setLayoutParams(testParams);
         //tlv.addView(btn, testParams);
-        tlv.addView(btn, 1000, 1000);
+        tlv.addView(btn);
 
     }
 }
